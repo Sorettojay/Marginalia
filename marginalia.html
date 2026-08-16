@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Marginalia &mdash; a home for readers &amp; writers</title>
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin></script>
+<link rel="stylesheet" href="marginalia.css">
+
+<style>
+  
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useRef, useEffect } = React;
+
+// ---------- inline icons (no external icon library needed) ----------
+
+const ICON_PATHS = {
+  "book-open": <>
+    <path d="M12 7v14" />
+    <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" />
+  </>,
+  "users": <>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </>,
+  "feather": <>
+    <path d="M12.67 19a2 2 0 0 0 1.416-.588l6.154-6.172a6 6 0 0 0-8.49-8.49L5.586 9.914A2 2 0 0 0 5 11.328V18a1 1 0 0 0 1 1z" />
+    <path d="M16 8 2 22" />
+    <path d="M17.5 15H9" />
+  </>,
+  "message-circle": <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />,
+  "library": <>
+    <path d="m16 6 4 14" />
+    <path d="M12 6v14" />
+    <path d="M8 8v12" />
+    <path d="M4 4v16" />
+  </>,
+  "pen-line": <>
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+  </>,
+  "heart": <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />,
+  "message-square": <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />,
+  "bookmark": <path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />,
+  "edit-3": <>
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+  </>,
+  "check": <path d="M20 6 9 17l-5-5" />,
+  "book-marked": <>
+    <path d="M4 19.5V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v6.5" />
+    <path d="M9 5h4" />
+    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H17" />
+  </>,
+  "send": <>
+    <path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z" />
+    <path d="m21.854 2.147-10.94 10.939" />
+  </>,
+  "external-link": <>
+    <path d="M15 3h6v6" />
+    <path d="M10 14 21 3" />
+    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+  </>,
+};
+
+function Icon({ name, size = 16, strokeWidth = 1.75, style = {}, fill = "none" }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill={fill}
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ flexShrink: 0, ...style }}
+    >
+      {ICON_PATHS[name]}
+    </svg>
+  );
+}
+
+// ---------- mock data ----------
+
+const initialProfile = {
+  name: "Wren Ashby",
+  handle: "@wrenwrites",
+  bio: "Writing a slow, stubborn novel about lighthouse keepers. Reads everything twice. Margin-scribbler.",
+  location: "Astoria, OR",
+  booksRead: 142,
+  followers: 318,
+  followingCount: 96,
+  currentlyReading: [
+    { title: "The Living Sea", author: "Ilana Corr", color: "#4A6741" },
+    { title: "Salt & Static", author: "Devi Okafor", color: "#6B2737" },
+  ],
+  shelf: [
+    { title: "Piranesi", author: "Susanna Clarke", color: "#3D5A80" },
+    { title: "The Overstory", author: "Richard Powers", color: "#4A6741" },
+    { title: "Braiding Sweetgrass", author: "Robin Wall Kimmerer", color: "#B8935F" },
+    { title: "Gilead", author: "Marilynne Robinson", color: "#6B2737" },
+    { title: "Wintering", author: "Katherine May", color: "#1B2A3C" },
+    { title: "Orbital", author: "Samantha Harvey", color: "#4A6741" },
+  ],
+};
+
+const initialPosts = [
+  {
+    id: 1,
+    author: "Idris Bellamy",
+    handle: "@idris_reads",
+    time: "2h",
+    date: "16 AUG",
+    content: "Finished the second draft of chapter nine. Cut 800 words and the scene finally breathes. Sometimes the best edit is a smaller one.",
+    book: null,
+    likes: 24,
+    comments: 6,
+    liked: false,
+  },
+  {
+    id: 2,
+    author: "Marguerite Solis",
+    handle: "@margueritewrites",
+    time: "4h",
+    date: "16 AUG",
+    content: "\u201CGrief is just love with nowhere to go.\u201D Underlined this three times and had to put the book down for a minute.",
+    book: "The Long Field \u2014 Pamela Petro",
+    likes: 89,
+    comments: 14,
+    liked: true,
+  },
+  {
+    id: 3,
+    author: "Tobias Kwan",
+    handle: "@tkwan.stories",
+    time: "9h",
+    date: "16 AUG",
+    content: "Started a used-bookstore crawl this weekend. Found a first edition with someone else's marginalia from 1987. Their handwriting is better than mine.",
+    book: null,
+    likes: 51,
+    comments: 9,
+    liked: false,
+  },
+  {
+    id: 4,
+    author: "Noor Al-Sayed",
+    handle: "@noorwrites",
+    time: "1d",
+    date: "15 AUG",
+    content: "Reminder to myself and anyone drafting right now: the outline is a lantern, not a leash. Follow the sentence if it wants to wander.",
+    book: null,
+    likes: 133,
+    comments: 21,
+    liked: false,
+  },
+];
+
+const suggestedFollows = [
+  { name: "Idris Bellamy", handle: "@idris_reads" },
+  { name: "Noor Al-Sayed", handle: "@noorwrites" },
+  { name: "Callum Reyes", handle: "@callumreads" },
+];
+
+const initialConversations = [
+  {
+    id: 1,
+    name: "Marguerite Solis",
+    handle: "@margueritewrites",
+    lastMessage: "yes! send me the chapter whenever it's ready",
+    unread: true,
+    messages: [
+      { from: "them", text: "How's the lighthouse novel coming along?", time: "Yesterday" },
+      { from: "me", text: "Slow. Rewrote the opening for the fourth time.", time: "Yesterday" },
+      { from: "them", text: "That's not slow, that's careful. Want a second pair of eyes?", time: "Yesterday" },
+      { from: "me", text: "Actually yes, if you have time this week.", time: "10:12 AM" },
+      { from: "them", text: "yes! send me the chapter whenever it's ready", time: "10:15 AM" },
+    ],
+  },
+  {
+    id: 2,
+    name: "Tobias Kwan",
+    handle: "@tkwan.stories",
+    lastMessage: "the bookstore is on 3rd, open till 6",
+    unread: false,
+    messages: [
+      { from: "them", text: "Found that used copy of Gilead you wanted.", time: "Mon" },
+      { from: "me", text: "No way \u2014 which shop?", time: "Mon" },
+      { from: "them", text: "the bookstore is on 3rd, open till 6", time: "Mon" },
+    ],
+  },
+  {
+    id: 3,
+    name: "Callum Reyes",
+    handle: "@callumreads",
+    lastMessage: "your review made me buy it immediately",
+    unread: false,
+    messages: [{ from: "them", text: "your review made me buy it immediately", time: "Last week" }],
+  },
+];
+
+const libraryLinks = [
+  {
+    category: "Free eBooks",
+    items: [
+      { name: "Project Gutenberg", desc: "70,000+ free eBooks, mostly pre-1928 texts.", url: "https://www.gutenberg.org" },
+      { name: "Open Library", desc: "Borrow scans and browse an open catalog of every book.", url: "https://openlibrary.org" },
+      { name: "Standard Ebooks", desc: "Carefully typeset public-domain editions.", url: "https://standardebooks.org" },
+    ],
+  },
+  {
+    category: "Audiobooks",
+    items: [{ name: "LibriVox", desc: "Free public-domain audiobooks read by volunteers.", url: "https://librivox.org" }],
+  },
+  {
+    category: "Research & Archives",
+    items: [
+      { name: "Internet Archive", desc: "Millions of scanned texts, journals, and out-of-print books.", url: "https://archive.org/details/texts" },
+      { name: "HathiTrust", desc: "A research library of digitized books from major universities.", url: "https://www.hathitrust.org" },
+      { name: "Library of Congress", desc: "Manuscripts, first editions, and the national catalog.", url: "https://www.loc.gov" },
+    ],
+  },
+  {
+    category: "Find a Library",
+    items: [{ name: "WorldCat", desc: "Find which library near you holds a specific title.", url: "https://www.worldcat.org" }],
+  },
+  {
+    category: "Poetry",
+    items: [{ name: "Poetry Foundation", desc: "Poems, essays, and a searchable poetry archive.", url: "https://www.poetryfoundation.org" }],
+  },
+];
+
+const initials = (name) => name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
+
+// ---------- small building blocks ----------
+
+function Avatar({ name, size = 40, bg = "var(--moss)" }) {
+  return (
+    <div className="avatar-circle" style={{ width: size, height: size, background: bg, fontSize: size * 0.36 }}>
+      {initials(name)}
+    </div>
+  );
+}
+
+function Stamp({ text }) {
+  return <span className="stamp">{text}</span>;
+}
+
+function DrawerButton({ label, sub, iconName, active, onClick, badge }) {
+  return (
+    <button className={`drawer-btn ${active ? "drawer-btn-active" : ""}`} onClick={onClick}>
+      <Icon name={iconName} size={17} />
+      <span className="drawer-btn-text">
+        <span className="drawer-label">{label}</span>
+        <span className="drawer-sub">{sub}</span>
+      </span>
+      {badge ? <span className="drawer-badge">{badge}</span> : null}
+    </button>
+  );
+}
+
+// ---------- main app ----------
+
+function Marginalia() {
+  const [view, setView] = useState("feed");
+  const [posts, setPosts] = useState(initialPosts);
+  const [newPost, setNewPost] = useState("");
+  const [profile, setProfile] = useState(initialProfile);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [draft, setDraft] = useState(initialProfile);
+  const [following, setFollowing] = useState(new Set(["@margueritewrites", "@tkwan.stories"]));
+  const [conversations, setConversations] = useState(initialConversations);
+  const [activeConvoId, setActiveConvoId] = useState(initialConversations[0].id);
+  const [messageDraft, setMessageDraft] = useState("");
+  const scrollRef = useRef(null);
+
+  const activeConvo = conversations.find((c) => c.id === activeConvoId);
+
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [activeConvoId, conversations]);
+
+  function submitPost() {
+    if (!newPost.trim()) return;
+    setPosts([
+      { id: Date.now(), author: profile.name, handle: profile.handle, time: "now", date: "16 AUG", content: newPost.trim(), book: null, likes: 0, comments: 0, liked: false },
+      ...posts,
+    ]);
+    setNewPost("");
+  }
+
+  function toggleLike(id) {
+    setPosts(posts.map((p) => (p.id === id ? { ...p, liked: !p.liked, likes: p.liked ? p.likes - 1 : p.likes + 1 } : p)));
+  }
+
+  function toggleFollow(handle) {
+    const next = new Set(following);
+    next.has(handle) ? next.delete(handle) : next.add(handle);
+    setFollowing(next);
+  }
+
+  function saveProfile() {
+    setProfile(draft);
+    setEditingProfile(false);
+  }
+
+  function sendMessage() {
+    if (!messageDraft.trim()) return;
+    setConversations(conversations.map((c) =>
+      c.id === activeConvoId
+        ? { ...c, unread: false, lastMessage: messageDraft.trim(), messages: [...c.messages, { from: "me", text: messageDraft.trim(), time: "now" }] }
+        : c
+    ));
+    setMessageDraft("");
+  }
+
+  return (
+    <div className="app-root">
+      <div className="shell">
+        <aside className="sidebar">
+          <div className="brand">
+            <div className="brand-mark">
+              <Icon name="book-open" size={22} />
+              <span className="brand-title">Marginalia</span>
+            </div>
+            <div className="brand-tag">a home for readers &amp; writers</div>
+          </div>
+
+          <div className="catalog">
+            <div className="catalog-caption">Card Catalog</div>
+            <DrawerButton label="The Commons" sub="FIC \u2013 GEN" iconName="users" active={view === "feed"} onClick={() => setView("feed")} />
+            <DrawerButton label="Your Card" sub="SELF" iconName="feather" active={view === "profile"} onClick={() => setView("profile")} />
+            <DrawerButton
+              label="Correspondence"
+              sub="LTRS"
+              iconName="message-circle"
+              active={view === "messages"}
+              onClick={() => setView("messages")}
+              badge={conversations.some((c) => c.unread) ? conversations.filter((c) => c.unread).length : null}
+            />
+            <DrawerButton label="The Stacks" sub="REF" iconName="library" active={view === "library"} onClick={() => setView("library")} />
+          </div>
+
+          <div className="sidebar-foot">
+            <Avatar name={profile.name} size={34} />
+            <div>
+              <div className="sidebar-foot-name">{profile.name}</div>
+              <div className="sidebar-foot-handle">{profile.handle}</div>
+            </div>
+          </div>
+        </aside>
+
+        <main className="main">
+          {view === "feed" && (
+            <>
+              <div className="main-header">
+                <div>
+                  <h1 className="main-title">The Commons</h1>
+                  <div className="main-sub">Updates from the writers and readers you follow</div>
+                </div>
+              </div>
+
+              <div className="feed-layout">
+                <div className="feed-main">
+                  <div className="card composer">
+                    <textarea placeholder="What are you reading, writing, or thinking about today?" value={newPost} onChange={(e) => setNewPost(e.target.value)} />
+                    <div className="composer-foot">
+                      <span className="mono" style={{ fontSize: 11, opacity: 0.5 }}>posting as {profile.handle}</span>
+                      <button className="btn-primary" onClick={submitPost} disabled={!newPost.trim()}>
+                        <Icon name="pen-line" size={14} /> Post
+                      </button>
+                    </div>
+                  </div>
+
+                  {posts.map((p) => (
+                    <article key={p.id} className="card post">
+                      <div className="post-head">
+                        <div className="post-who">
+                          <Avatar name={p.author} size={38} bg={p.author === profile.name ? "var(--burgundy)" : "var(--moss)"} />
+                          <div>
+                            <div className="post-name">{p.author}</div>
+                            <div className="post-handle">{p.handle} &middot; {p.time}</div>
+                          </div>
+                        </div>
+                        <Stamp text={p.date} />
+                      </div>
+                      <p className="post-body">{p.content}</p>
+                      {p.book && <div className="post-book">&#128214; currently reading &mdash; {p.book}</div>}
+                      <div className="post-foot">
+                        <button className={`btn-ghost ${p.liked ? "liked" : ""}`} onClick={() => toggleLike(p.id)}>
+                          <Icon name="heart" size={14} fill={p.liked ? "var(--burgundy)" : "none"} /> {p.likes}
+                        </button>
+                        <button className="btn-ghost">
+                          <Icon name="message-square" size={14} /> {p.comments}
+                        </button>
+                        <button className="btn-ghost">
+                          <Icon name="bookmark" size={14} /> save
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+
+                <div className="feed-aside">
+                  <div className="card aside-card">
+                    <div className="aside-title">Writers to follow</div>
+                    {suggestedFollows.map((s) => (
+                      <div key={s.handle} className="suggest-row">
+                        <Avatar name={s.name} size={30} bg="var(--gold)" />
+                        <div>
+                          <div className="suggest-name">{s.name}</div>
+                          <div className="suggest-handle">{s.handle}</div>
+                        </div>
+                        <button className={`follow-pill ${following.has(s.handle) ? "active" : ""}`} onClick={() => toggleFollow(s.handle)}>
+                          {following.has(s.handle) ? "Following" : "Follow"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="card aside-card">
+                    <div className="aside-title">This week on Marginalia</div>
+                    <p style={{ fontSize: 12.5, lineHeight: 1.6, opacity: 0.75, margin: 0 }}>
+                      412 chapters drafted, 1,204 books logged, and one very long argument about the Oxford comma.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {view === "profile" && (
+            <>
+              <div className="main-header">
+                <div>
+                  <h1 className="main-title">Your Card</h1>
+                  <div className="main-sub">How other readers see you on Marginalia</div>
+                </div>
+                {!editingProfile ? (
+                  <button className="btn-secondary" onClick={() => { setDraft(profile); setEditingProfile(true); }}>
+                    <Icon name="edit-3" size={13} style={{ marginRight: 6, display: "inline" }} /> Edit card
+                  </button>
+                ) : (
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button className="btn-secondary" onClick={() => setEditingProfile(false)}>Cancel</button>
+                    <button className="btn-primary" onClick={saveProfile}><Icon name="check" size={14} /> Save</button>
+                  </div>
+                )}
+              </div>
+
+              <div className="card profile-card">
+                {!editingProfile ? (
+                  <>
+                    <div className="profile-top">
+                      <Avatar name={profile.name} size={64} bg="var(--burgundy)" />
+                      <div>
+                        <div className="profile-name">{profile.name}</div>
+                        <div className="profile-handle">{profile.handle}</div>
+                        <p className="profile-bio">{profile.bio}</p>
+                        <div className="profile-loc">&#128205; {profile.location}</div>
+                      </div>
+                    </div>
+                    <div className="profile-stats">
+                      <div><div className="stat-num">{profile.booksRead}</div><div className="stat-label">Books logged</div></div>
+                      <div><div className="stat-num">{profile.followers}</div><div className="stat-label">Followers</div></div>
+                      <div><div className="stat-num">{profile.followingCount}</div><div className="stat-label">Following</div></div>
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ maxWidth: 440 }}>
+                    <label className="field-label">Name</label>
+                    <input className="field-input" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
+                    <label className="field-label">Handle</label>
+                    <input className="field-input" value={draft.handle} onChange={(e) => setDraft({ ...draft, handle: e.target.value })} />
+                    <label className="field-label">Bio</label>
+                    <textarea className="field-textarea" value={draft.bio} onChange={(e) => setDraft({ ...draft, bio: e.target.value })} />
+                    <label className="field-label">Location</label>
+                    <input className="field-input" value={draft.location} onChange={(e) => setDraft({ ...draft, location: e.target.value })} />
+                  </div>
+                )}
+              </div>
+
+              <div className="shelf-section-title">Currently reading</div>
+              <div className="reading-row">
+                {profile.currentlyReading.map((b) => (
+                  <div key={b.title} className="reading-card" style={{ background: b.color }}>
+                    <Icon name="book-marked" size={16} />
+                    <div>
+                      <div style={{ fontFamily: "Fraunces, serif", fontWeight: 600, fontSize: 13.5 }}>{b.title}</div>
+                      <div className="mono" style={{ fontSize: 10, opacity: 0.85 }}>{b.author}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="shelf-section-title">Bookshelf</div>
+              <div className="book-grid">
+                {profile.shelf.map((b) => (
+                  <div key={b.title} className="book-spine" style={{ background: b.color }}>
+                    <div className="book-spine-title">{b.title}</div>
+                    <div className="book-spine-author">{b.author}</div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {view === "messages" && (
+            <>
+              <div className="main-header">
+                <div>
+                  <h1 className="main-title">Correspondence</h1>
+                  <div className="main-sub">Direct messages with fellow writers</div>
+                </div>
+              </div>
+
+              <div className="msg-shell">
+                <div className="convo-list">
+                  {conversations.map((c) => (
+                    <div key={c.id} className={`convo-item ${c.id === activeConvoId ? "active" : ""}`} onClick={() => setActiveConvoId(c.id)}>
+                      <Avatar name={c.name} size={36} bg="var(--moss)" />
+                      <div style={{ minWidth: 0 }}>
+                        <div className="convo-name">{c.name}</div>
+                        <div className="convo-last">{c.lastMessage}</div>
+                      </div>
+                      {c.unread && <span className="unread-dot" />}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="thread">
+                  {activeConvo && (
+                    <>
+                      <div className="thread-head">
+                        <Avatar name={activeConvo.name} size={32} bg="var(--moss)" />
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: 13.5 }}>{activeConvo.name}</div>
+                          <div className="mono" style={{ fontSize: 10.5, opacity: 0.55 }}>{activeConvo.handle}</div>
+                        </div>
+                      </div>
+                      <div className="thread-body" ref={scrollRef}>
+                        {activeConvo.messages.map((m, i) => (
+                          <div key={i} className={`bubble ${m.from}`}>
+                            {m.text}
+                            <div className="bubble-time">{m.time}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="thread-input">
+                        <input
+                          placeholder="Write a message\u2026"
+                          value={messageDraft}
+                          onChange={(e) => setMessageDraft(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                        />
+                        <button className="send-btn" onClick={sendMessage}><Icon name="send" size={15} /></button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          {view === "library" && (
+            <>
+              <div className="main-header">
+                <div>
+                  <h1 className="main-title">The Stacks</h1>
+                  <div className="main-sub">Curated links out to libraries and literature beyond Marginalia</div>
+                </div>
+              </div>
+
+              {libraryLinks.map((group) => (
+                <div key={group.category} className="lib-group">
+                  <div className="lib-group-title">{group.category}</div>
+                  <div className="lib-grid">
+                    {group.items.map((item) => (
+                      <a key={item.name} className="card lib-card" href={item.url} target="_blank" rel="noopener noreferrer">
+                        <div className="lib-card-name">
+                          {item.name}
+                          <Icon name="external-link" size={13} style={{ opacity: 0.5 }} />
+                        </div>
+                        <div className="lib-card-desc">{item.desc}</div>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<Marginalia />);
+</script>
+</body>
+</html>
